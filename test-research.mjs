@@ -52,3 +52,5 @@ await test('failed save does not claim key was remembered',()=>{const store=stor
 await test('failed deletion does not claim saved key was removed',()=>{const store=storage(),s=createSettings(()=>store);s.update({...config,remember:true});store.removeItem=()=>{throw Error('blocked')};assert.throws(()=>s.clear(),/未能删除/);assert.equal(s.public().remember,true);});
 await test('malformed saved key is ignored',()=>{const store=storage();store.setItem(savedKeyName,'invalid-json');assert.equal(createSettings(()=>store).public().has_api_key,false);store.setItem(savedKeyName,JSON.stringify({version:1,api_key:'bad key'}));assert.equal(createSettings(()=>store).public().has_api_key,false);});
 console.log(JSON.stringify({passed:checks.length,checks}));
+
+await import('./test-workspace.mjs');

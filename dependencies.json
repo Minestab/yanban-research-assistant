@@ -1,0 +1,6 @@
+{
+  "pdfjs-dist": "6.4.299",
+  "katex": "0.19.0",
+  "@supabase/supabase-js": "2.118.0",
+  "note": "Downloaded npm release tarballs; SHA-512 verified against registry dist.integrity; licenses included in dist/vendor."
+}
