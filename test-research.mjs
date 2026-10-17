@@ -63,3 +63,6 @@ import './test-selection-translator.mjs';
 
 import './test-learning-detail.mjs';
 import './test-learning-sync.mjs';
+
+import './test-auto-sync.mjs';
+import './test-cloud-background.mjs';
