@@ -1,9 +1,42 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {learningSource,learningStages,validateLearningPlan,makeLearningPlan,reviewLearningAnswer} from './dist/learning.mjs';
+import {learningSource,learningStages,validateLearningPlan,makeLearningPlan,reviewLearningAnswer,repairLearningRubrics} from './dist/learning.mjs';
+import {normalizeKeyPoints} from './dist/learning-rubric.mjs';
 const doc={id:'test',title:'Research',page_count:3,paragraphs:[{id:'p1',page:1,text:'Research question and background.'},{id:'p2',page:2,text:'Method and findings.'},{id:'p3',page:3,text:'Evidence and limitations.'}]};
 const draft=()=>({summary:'论文的问题与证据 [p1]',steps:learningStages.map(([id])=>({id,goal:'读懂问题',read_task:'阅读摘要 [p1]',explanation:'研究问题解释 [p1]',question:'用自己的话说出研究问题',hint:'先找原文中的目标',reference_answer:'研究问题来自摘要 [p1]',key_points:['说明研究对象','说明问题'],sources:['p1']}))});
 const response=data=>({message:{content:JSON.stringify(data)},model:'test-model'});
+test('valid longer rubrics are preserved and do not require another model call',async()=>{
+ const raw=draft();raw.steps[0].key_points=['对象','问题','条件','方法','证据','局限'];let calls=0;
+ const result=await makeLearningPlan(doc,{level:'beginner',goal:'overview'},async()=>{calls++;return response(raw);});
+ assert.equal(calls,1);assert.deepEqual(result.steps[0].key_points,raw.steps[0].key_points);
+});
+test('equivalent list encodings normalize without splitting sentences or inventing points',()=>{
+ assert.deepEqual(normalizeKeyPoints('1. 对象\n2. 问题'),['对象','问题']);
+ assert.deepEqual(normalizeKeyPoints('["对象","问题"]'),['对象','问题']);
+ assert.throws(()=>normalizeKeyPoints('对象；问题'));
+ for(const bad of [undefined,[],[''],['好',{}],['好','x'.repeat(601)]])assert.throws(()=>normalizeKeyPoints(bad));
+});
+test('missing rubric gets a focused repair while preserving the other five steps',async()=>{
+ const raw=draft();delete raw.steps[2].key_points;const before=structuredClone(raw);let calls=0;
+ const result=await makeLearningPlan(doc,{level:'beginner',goal:'overview'},async messages=>{
+  if(++calls===1)return response(raw);
+  const input=JSON.parse(messages[1].content);assert.deepEqual(input.untrusted_questions.map(s=>s.id),['method']);assert.equal(input.untrusted_source_text[0].id,'p1');
+  return response({steps:[{id:'method',key_points:['指出对象 [p1]','解释方法 [p1]']}]});
+ });
+ assert.equal(calls,2);assert.deepEqual(raw,before);assert.equal(result.steps[2].key_points[0],'指出对象 [p1]');
+ for(const i of [0,1,3,4,5])assert.deepEqual(result.steps[i].key_points,raw.steps[i].key_points);
+});
+test('rubric repair rejects invented citations and duplicate step identifiers',async()=>{
+ const raw=draft();delete raw.steps[0].key_points;const source=learningSource(doc).selected;
+ await assert.rejects(()=>repairLearningRubrics(raw,source,async()=>response({steps:[{id:'problem',key_points:['虚构 [p999]','要点']}]})),/未读取/);
+ delete raw.steps[1].key_points;
+ await assert.rejects(()=>repairLearningRubrics(raw,source,async()=>response({steps:[{id:'problem',key_points:['一','二']},{id:'problem',key_points:['三','四']}]})),/不完整/);
+});
+test('failed targeted repair falls back to one complete validated regeneration',async()=>{
+ const raw=draft();raw.steps[0].key_points=[];let calls=0;
+ const result=await makeLearningPlan(doc,{level:'beginner',goal:'overview'},async()=>response(++calls===1?raw:calls===2?{steps:[]}:draft()));
+ assert.equal(calls,3);assert.equal(result.steps.length,6);
+});
 test('learning source preserves all short-paper text including final page',()=>{
  const source=learningSource(doc);assert.deepEqual(source.selected,doc.paragraphs);assert.equal(source.coverage.partial,false);assert.equal(source.coverage.read_pages,3);
 });
