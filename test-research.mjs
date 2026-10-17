@@ -60,3 +60,6 @@ await import('./test-formulas.mjs');
 await import('./test-page-translator.mjs');
 import './test-learning.mjs';
 import './test-selection-translator.mjs';
+
+import './test-learning-detail.mjs';
+import './test-learning-sync.mjs';
