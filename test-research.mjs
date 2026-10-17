@@ -54,3 +54,5 @@ await test('malformed saved key is ignored',()=>{const store=storage();store.set
 console.log(JSON.stringify({passed:checks.length,checks}));
 
 await import('./test-workspace.mjs');
+
+await import('./test-formulas.mjs');
