@@ -58,3 +58,4 @@ await import('./test-workspace.mjs');
 await import('./test-formulas.mjs');
 
 await import('./test-page-translator.mjs');
+import './test-learning.mjs';
